@@ -57,36 +57,45 @@
  * under ~/.claude are printed for visibility only — third-party files, so no cap and no failure.
  */
 
-import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
-import { homedir } from 'node:os';
-import { resolve, dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
+import { homedir } from "node:os";
+import { resolve, dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = resolve(HERE, '..');
-const DEFAULT_SKILLS = resolve(REPO_ROOT, 'skills');
-const DEFAULT_AGENTS = resolve(REPO_ROOT, 'agents');
+const REPO_ROOT = resolve(HERE, "..");
+const DEFAULT_SKILLS = resolve(REPO_ROOT, "skills");
+const DEFAULT_AGENTS = resolve(REPO_ROOT, "agents");
 const DEFAULT_WORKSPACE = REPO_ROOT;
-const DEFAULT_SYNCED_SKILLS = join(homedir(), '.claude', 'skills', 'synced');
-const DEFAULT_SYNCED_PLUGINS = join(homedir(), '.claude', 'plugins', 'synced');
+const DEFAULT_SYNCED_SKILLS = join(homedir(), ".claude", "skills", "synced");
+const DEFAULT_SYNCED_PLUGINS = join(homedir(), ".claude", "plugins", "synced");
 
 const argv = process.argv.slice(2);
-const skillsIdx = argv.indexOf('--skills');
-const SKILLS_ROOT = skillsIdx === -1 ? DEFAULT_SKILLS : resolve(argv[skillsIdx + 1] ?? '');
-const agentsIdx = argv.indexOf('--agents');
-const AGENTS_ROOT = agentsIdx === -1 ? DEFAULT_AGENTS : resolve(argv[agentsIdx + 1] ?? '');
-const workspaceIdx = argv.indexOf('--workspace');
-const WORKSPACE_ROOT = workspaceIdx === -1 ? DEFAULT_WORKSPACE : resolve(argv[workspaceIdx + 1] ?? '');
-const syncedSkillsIdx = argv.indexOf('--synced-skills');
+const skillsIdx = argv.indexOf("--skills");
+const SKILLS_ROOT =
+  skillsIdx === -1 ? DEFAULT_SKILLS : resolve(argv[skillsIdx + 1] ?? "");
+const agentsIdx = argv.indexOf("--agents");
+const AGENTS_ROOT =
+  agentsIdx === -1 ? DEFAULT_AGENTS : resolve(argv[agentsIdx + 1] ?? "");
+const workspaceIdx = argv.indexOf("--workspace");
+const WORKSPACE_ROOT =
+  workspaceIdx === -1
+    ? DEFAULT_WORKSPACE
+    : resolve(argv[workspaceIdx + 1] ?? "");
+const syncedSkillsIdx = argv.indexOf("--synced-skills");
 const SYNCED_SKILLS_ROOT =
-  syncedSkillsIdx === -1 ? DEFAULT_SYNCED_SKILLS : resolve(argv[syncedSkillsIdx + 1] ?? '');
-const syncedPluginsIdx = argv.indexOf('--synced-plugins');
+  syncedSkillsIdx === -1
+    ? DEFAULT_SYNCED_SKILLS
+    : resolve(argv[syncedSkillsIdx + 1] ?? "");
+const syncedPluginsIdx = argv.indexOf("--synced-plugins");
 const SYNCED_PLUGINS_ROOT =
-  syncedPluginsIdx === -1 ? DEFAULT_SYNCED_PLUGINS : resolve(argv[syncedPluginsIdx + 1] ?? '');
+  syncedPluginsIdx === -1
+    ? DEFAULT_SYNCED_PLUGINS
+    : resolve(argv[syncedPluginsIdx + 1] ?? "");
 
 for (const [label, root] of [
-  ['skills', SKILLS_ROOT],
-  ['agents', AGENTS_ROOT],
+  ["skills", SKILLS_ROOT],
+  ["agents", AGENTS_ROOT],
 ]) {
   if (!root || !existsSync(root) || !statSync(root).isDirectory()) {
     console.error(`ABORT: no ${label} directory at ${root}`);
@@ -97,8 +106,7 @@ for (const [label, root] of [
 /**
  * Every cap in ONE obvious place — see file header. `perDescriptionBytes` and
  * `totalDescriptionBytes` are rounded-up-to-256 versions of the measured resident max (271 B,
- * agents/reviewer.md) and resident sum (768 B across 3 agents, #66; held one step above the exact 768 so it never flickers — all 14 skills are flagged,
- * 2026-10-08, #64). `skillIndexBytes` is the ≤1 KB budget for skills/INDEX.md.
+ * agent descriptions only, #66; the cap is set above the current sum so it never flickers — all 14 skills are flagged, 2026-10-08, #64). `skillIndexBytes` is the ≤1 KB budget for skills/INDEX.md.
  * `claudeMd` keys are repo-relative paths under WORKSPACE_ROOT; values are each file's
  * measured byte count rounded up to the next 256 B, re-measured after the #65 chain trim.
  */
@@ -107,21 +115,21 @@ const CAPS = {
   totalDescriptionBytes: 1024,
   skillIndexBytes: 1024,
   claudeMd: {
-    'workspace/CLAUDE.md': 7040,
-    'workspace/web/CLAUDE.md': 6400,
-    'workspace/games/CLAUDE.md': 7168,
-    'workspace/apps/CLAUDE.md': 2304,
+    "workspace/CLAUDE.md": 7040,
+    "workspace/web/CLAUDE.md": 6400,
+    "workspace/games/CLAUDE.md": 7168,
+    "workspace/apps/CLAUDE.md": 2304,
   },
 };
 
 /** UTF-8 byte length of a string, CRLF normalized to LF first so Windows checkouts and CI agree. */
 function byteLength(str) {
-  return Buffer.byteLength(str.replace(/\r\n/g, '\n'), 'utf8');
+  return Buffer.byteLength(str.replace(/\r\n/g, "\n"), "utf8");
 }
 
-const REQUIRED = ['name', 'description'];
+const REQUIRED = ["name", "description"];
 /** Values opening with these are quoted or block scalars — YAML parses the colon fine. */
-const SAFE_OPENERS = ["'", '"', '|', '>'];
+const SAFE_OPENERS = ["'", '"', "|", ">"];
 
 /**
  * Declared, auditable exclusion list for the agents root: files that are not agent
@@ -129,14 +137,14 @@ const SAFE_OPENERS = ["'", '"', '|', '>'];
  * frontmatter at all. Adding to this list is a visible diff line, not an inferred property
  * of a file's content — see the file-header comment for why that distinction matters.
  */
-const NON_AGENT_DOCS = ['ROUTING.md'];
+const NON_AGENT_DOCS = ["ROUTING.md"];
 
 /** Enumerate `<dir>/SKILL.md` for every subdirectory of root that has one. */
 function enumerateSkills(root) {
   const entries = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
     if (!entry.isDirectory()) continue;
-    const file = join(root, entry.name, 'SKILL.md');
+    const file = join(root, entry.name, "SKILL.md");
     if (!existsSync(file)) continue;
     entries.push({ file, rel: `${entry.name}/SKILL.md` });
   }
@@ -147,7 +155,7 @@ function enumerateSkills(root) {
 function enumerateAgents(root) {
   const entries = [];
   for (const entry of readdirSync(root, { withFileTypes: true })) {
-    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
     if (NON_AGENT_DOCS.includes(entry.name)) continue;
     entries.push({ file: join(root, entry.name), rel: entry.name });
   }
@@ -158,13 +166,15 @@ function enumerateAgents(root) {
 function parseFrontmatter(text) {
   const lines = text.split(/\r?\n/);
 
-  if (lines[0]?.trim() !== '---') {
-    return { problem: 'no frontmatter — the file must open with a --- delimiter' };
+  if (lines[0]?.trim() !== "---") {
+    return {
+      problem: "no frontmatter — the file must open with a --- delimiter",
+    };
   }
 
-  const close = lines.findIndex((l, i) => i > 0 && l.trim() === '---');
+  const close = lines.findIndex((l, i) => i > 0 && l.trim() === "---");
   if (close === -1) {
-    return { problem: 'frontmatter is never closed — no second --- delimiter' };
+    return { problem: "frontmatter is never closed — no second --- delimiter" };
   }
 
   const fields = new Map();
@@ -188,7 +198,7 @@ function checkRoot(entries) {
 
   for (const { file, rel } of entries) {
     checked++;
-    const parsed = parseFrontmatter(readFileSync(file, 'utf8'));
+    const parsed = parseFrontmatter(readFileSync(file, "utf8"));
     if (parsed.problem) {
       problems.push(`${rel}: ${parsed.problem}`);
       continue;
@@ -201,7 +211,7 @@ function checkRoot(entries) {
         continue;
       }
       const value = fields.get(key);
-      if (value === '') {
+      if (value === "") {
         problems.push(`${rel}: "${key}" is empty`);
         continue;
       }
@@ -213,9 +223,13 @@ function checkRoot(entries) {
       }
     }
 
-    const resident = fields.get('disable-model-invocation') !== 'true';
-    if (resident && fields.has('description') && fields.get('description') !== '') {
-      descriptions.push({ rel, bytes: byteLength(fields.get('description')) });
+    const resident = fields.get("disable-model-invocation") !== "true";
+    if (
+      resident &&
+      fields.has("description") &&
+      fields.get("description") !== ""
+    ) {
+      descriptions.push({ rel, bytes: byteLength(fields.get("description")) });
     }
   }
 
@@ -250,18 +264,26 @@ function checkDescriptionCaps(descriptions) {
  * `<name>/SKILL.md` path — session-start.mjs injects it as the only routing to flagged skills.
  */
 function checkSkillIndex(skillsRoot, skillEntries) {
-  const file = join(skillsRoot, 'INDEX.md');
+  const file = join(skillsRoot, "INDEX.md");
   if (!existsSync(file)) {
-    return { problems: [`INDEX.md: missing at ${file} — session-start would inject no skill routing`], bytes: 0 };
+    return {
+      problems: [
+        `INDEX.md: missing at ${file} — session-start would inject no skill routing`,
+      ],
+      bytes: 0,
+    };
   }
-  const text = readFileSync(file, 'utf8');
+  const text = readFileSync(file, "utf8");
   const bytes = byteLength(text);
   const problems = [];
   if (bytes > CAPS.skillIndexBytes) {
-    problems.push(`INDEX.md: ${bytes} B, over the cap of ${CAPS.skillIndexBytes} B`);
+    problems.push(
+      `INDEX.md: ${bytes} B, over the cap of ${CAPS.skillIndexBytes} B`,
+    );
   }
   for (const { rel } of skillEntries) {
-    if (!text.includes(rel)) problems.push(`INDEX.md: ${rel} is not listed — the skill is unroutable`);
+    if (!text.includes(rel))
+      problems.push(`INDEX.md: ${rel} is not listed — the skill is unroutable`);
   }
   return { problems, bytes };
 }
@@ -283,7 +305,8 @@ function findFilesNamed(base, name) {
     for (const entry of entries) {
       const p = join(dir, entry.name);
       if (entry.isDirectory()) {
-        if (entry.name === 'node_modules' || entry.name.startsWith('.')) continue;
+        if (entry.name === "node_modules" || entry.name.startsWith("."))
+          continue;
         walk(p, depth + 1);
       } else if (entry.isFile() && entry.name === name) {
         found.push(p);
@@ -301,10 +324,10 @@ function findFilesNamed(base, name) {
  * shape, e.g. `workspace/web/CLAUDE.md`), sorted for deterministic output. Noise directories
  */
 function findAllClaudeMdFiles(workspaceRoot) {
-  const base = join(workspaceRoot, 'workspace');
-  const found = findFilesNamed(base, 'CLAUDE.md');
+  const base = join(workspaceRoot, "workspace");
+  const found = findFilesNamed(base, "CLAUDE.md");
   return found
-    .map((file) => file.slice(workspaceRoot.length + 1).replace(/\\/g, '/'))
+    .map((file) => file.slice(workspaceRoot.length + 1).replace(/\\/g, "/"))
     .sort();
 }
 
@@ -325,7 +348,7 @@ function checkClaudeMdCaps(workspaceRoot) {
       problems.push(`${rel}: expected at ${file}, but it does not exist`);
       continue;
     }
-    const bytes = byteLength(readFileSync(file, 'utf8'));
+    const bytes = byteLength(readFileSync(file, "utf8"));
     sizes.push({ rel, bytes, cap });
     if (bytes > cap) {
       problems.push(`${rel}: ${bytes} B, over the cap of ${cap} B`);
@@ -334,7 +357,9 @@ function checkClaudeMdCaps(workspaceRoot) {
 
   for (const rel of onDisk) {
     if (!(rel in CAPS.claudeMd)) {
-      problems.push(`${rel}: found on disk with no cap in CAPS.claudeMd — add a cap for ${rel}`);
+      problems.push(
+        `${rel}: found on disk with no cap in CAPS.claudeMd — add a cap for ${rel}`,
+      );
     }
   }
 
@@ -350,20 +375,27 @@ function checkClaudeMdCaps(workspaceRoot) {
  */
 function measureSyncedRoot(root) {
   if (!existsSync(root) || !statSync(root).isDirectory()) return null;
-  const files = findFilesNamed(root, 'SKILL.md');
+  const files = findFilesNamed(root, "SKILL.md");
 
   let count = 0;
   let bytes = 0;
   for (const file of files) {
     let parsed;
     try {
-      parsed = parseFrontmatter(readFileSync(file, 'utf8'));
+      parsed = parseFrontmatter(readFileSync(file, "utf8"));
     } catch {
       continue;
     }
-    if (parsed.problem || parsed.fields.get('disable-model-invocation') === 'true') continue;
-    const description = (parsed.fields.get('description') ?? '').replace(/^(["'])(.*)\1$/, '$2');
-    if (description === '') continue;
+    if (
+      parsed.problem ||
+      parsed.fields.get("disable-model-invocation") === "true"
+    )
+      continue;
+    const description = (parsed.fields.get("description") ?? "").replace(
+      /^(["'])(.*)\1$/,
+      "$2",
+    );
+    if (description === "") continue;
     count++;
     bytes += byteLength(description);
   }
@@ -382,13 +414,15 @@ console.log(`agents checked: ${agentsResult.checked}`);
 // one root, re-run CI, and only then discover the other root also had a problem.
 const problems = [...skillsResult.problems, ...agentsResult.problems];
 if (problems.length > 0) {
-  console.error(`\n--- UNPUBLISHABLE FRONTMATTER (${problems.length}) — BLOCKER ---`);
+  console.error(
+    `\n--- UNPUBLISHABLE FRONTMATTER (${problems.length}) — BLOCKER ---`,
+  );
   for (const p of problems) console.error(`  ${p}`);
 }
 
 const zeroCountRoots = [];
-if (skillsResult.checked === 0) zeroCountRoots.push(['skills', SKILLS_ROOT]);
-if (agentsResult.checked === 0) zeroCountRoots.push(['agents', AGENTS_ROOT]);
+if (skillsResult.checked === 0) zeroCountRoots.push(["skills", SKILLS_ROOT]);
+if (agentsResult.checked === 0) zeroCountRoots.push(["agents", AGENTS_ROOT]);
 
 if (zeroCountRoots.length > 0) {
   for (const [label, root] of zeroCountRoots) {
@@ -402,21 +436,28 @@ if (zeroCountRoots.length > 0) {
 // Resident-byte caps (issue #63) — run regardless of the publishes-check result above, so one
 // run always surfaces every class of problem rather than making an operator fix frontmatter,
 // re-run, and only then discover a byte cap is also blown.
-const allDescriptions = [...skillsResult.descriptions, ...agentsResult.descriptions];
+const allDescriptions = [
+  ...skillsResult.descriptions,
+  ...agentsResult.descriptions,
+];
 const descriptionCapResult = checkDescriptionCaps(allDescriptions);
 const claudeMdCapResult = checkClaudeMdCaps(WORKSPACE_ROOT);
 const skillIndexResult = checkSkillIndex(SKILLS_ROOT, skillEntries);
 
-console.log(`descriptions measured: ${allDescriptions.length} (${descriptionCapResult.total} B total)`);
-console.log(`skills/INDEX.md: ${skillIndexResult.bytes} B (cap ${CAPS.skillIndexBytes} B)`);
+console.log(
+  `descriptions measured: ${allDescriptions.length} (${descriptionCapResult.total} B total)`,
+);
+console.log(
+  `skills/INDEX.md: ${skillIndexResult.bytes} B (cap ${CAPS.skillIndexBytes} B)`,
+);
 for (const { rel, bytes, cap } of claudeMdCapResult.sizes) {
   console.log(`${rel}: ${bytes} B (cap ${cap} B)`);
 }
 
 let syncedTotal = 0;
 for (const [label, root] of [
-  ['synced skills', SYNCED_SKILLS_ROOT],
-  ['synced plugins', SYNCED_PLUGINS_ROOT],
+  ["synced skills", SYNCED_SKILLS_ROOT],
+  ["synced plugins", SYNCED_PLUGINS_ROOT],
 ]) {
   const measured = measureSyncedRoot(root);
   if (measured === null) {
@@ -424,7 +465,9 @@ for (const [label, root] of [
     continue;
   }
   syncedTotal += measured.bytes;
-  console.log(`${label} (${root}): ${measured.count} descriptions, ${measured.bytes} B`);
+  console.log(
+    `${label} (${root}): ${measured.count} descriptions, ${measured.bytes} B`,
+  );
 }
 console.log(`synced listing total: ${syncedTotal} B (report only, no cap)`);
 
@@ -434,7 +477,9 @@ const residentProblems = [
   ...claudeMdCapResult.problems,
 ];
 if (residentProblems.length > 0) {
-  console.error(`\n--- RESIDENT BYTE CAP EXCEEDED (${residentProblems.length}) — BLOCKER ---`);
+  console.error(
+    `\n--- RESIDENT BYTE CAP EXCEEDED (${residentProblems.length}) — BLOCKER ---`,
+  );
   for (const p of residentProblems) console.error(`  ${p}`);
 }
 
@@ -445,5 +490,5 @@ if (allProblems.length > 0) {
 }
 
 console.log(
-  'PASS: every SKILL.md and agent definition publishes a name and description, and resident bytes are within cap.',
+  "PASS: every SKILL.md and agent definition publishes a name and description, and resident bytes are within cap.",
 );
