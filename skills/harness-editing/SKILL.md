@@ -8,15 +8,15 @@ disable-model-invocation: true
 
 ## Layout — what lives where
 
-| Artifact | Location |
-|---|---|
-| Root + domain CLAUDE.md, reference docs | `claude-config/workspace/` — junctioned into `~/code` |
-| Skills | `claude-config/skills/` — one junction per skill into `~/.claude/skills/` (a new skill needs `setup.ps1`/`setup.sh` re-run or a hand-made junction) |
-| Agent defs + ROUTING.md | `claude-config/agents/` — whole-directory junction to `~/.claude/agents/` |
-| Hooks | `claude-config/hooks/*.mjs` — wiring in `~/.claude/settings.json` |
-| Workflow scripts | `claude-config/scripts/*.mjs` (tests in `scripts/test/`, run `node --test scripts/test/*.test.mjs` — the bare directory form fails on Windows Node 24) |
-| Specs, tracking, bugs | GitHub issues — harness/cross-repo in claude-config, project work in its repo |
-| Screenshots, harness-evolution archive | `~/code/docs/` (private repo) — never in junctioned claude-config dirs |
+| Artifact                                | Location                                                                                                                                               |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Root + domain CLAUDE.md, reference docs | `claude-config/workspace/` — junctioned into `~/code`                                                                                                  |
+| Skills                                  | `claude-config/skills/` — one junction per skill into `~/.claude/skills/` (a new skill needs `setup.ps1`/`setup.sh` re-run or a hand-made junction)    |
+| Agent defs + ROUTING.md                 | `claude-config/agents/` — whole-directory junction to `~/.claude/agents/`                                                                              |
+| Hooks                                   | `claude-config/hooks/*.mjs` — wiring in `~/.claude/settings.json`                                                                                      |
+| Workflow scripts                        | `claude-config/scripts/*.mjs` (tests in `scripts/test/`, run `node --test scripts/test/*.test.mjs` — the bare directory form fails on Windows Node 24) |
+| Specs, tracking, bugs                   | GitHub issues — harness/cross-repo in claude-config, project work in its repo                                                                          |
+| Screenshots, harness-evolution archive  | `~/code/docs/` (private repo) — never in junctioned claude-config dirs                                                                                 |
 
 **Wiring map:** `claude-config/harness-map.json` names every part and what it calls, gates or feeds — read it before sweeping files. Adding, removing or rewiring a skill, hook, agent or script means updating its node and edges in the same change, or CI (`scripts/harness-map.mjs check`) fails.
 
@@ -48,7 +48,7 @@ Stop at the first rung that fits. Each rung down is cheaper context than the nex
 - Routing/behavior claims are verified by **probe** (a fresh session, an uncontaminated prompt, a near negative control), not by inspection — and audited by tool trace, not the announce line. A session cannot probe its own routing.
 - Known-broken description routing: `docs/web/TESTING-TRAPS.md` and games diagnostics are hand-loaded via domain CLAUDE.md pointer lines — don't re-attempt description rewrites for them.
 - The `claude` CLI is `~/.local/bin/claude.exe`, which is not on Git Bash's PATH, and subagent shells lack it too. CLI probes (`--help`, `plugin eval`) call it by path from the orchestrator.
-- Hooks are fail-open: errors go to `~/.claude/hook-errors.log` — check it first when a hook seems silent. Unit-test hooks by piping JSON to stdin.
+- Hooks are fail-open by default: errors go to `~/.claude/hook-errors.log` — check it first when a hook seems silent. Four guards (`bash-guard`, `agent-model-guard`, `pre-model-switch`, `browser-gate`) fail closed. Unit-test hooks by piping JSON to stdin.
 - A change live for every session (hooks, settings.json, statusline, the CLAUDE.md chain) gets a fresh-context reviewer before push: green gates hid 5 majors in Phase 2 (#93) and 4 in #77 (b92ad8e).
 - A guard or approval change gets a guard-replay diff before the PR: `node scripts/guard-replay.mjs <main-checkout> <branch-worktree>` (#106). A bash-guard change adds `--branch` (gitCalls + branchRules on an unborn and a born repo, #165). It only sees shapes the transcripts hold, so it complements the fresh-context reviewer and never replaces it.
 - Harness itself suspected: `claude --safe-mode` disables every harness customization at once to confirm the harness is the cause (it won't name the hook); `/doctor` runs a general checkup.
